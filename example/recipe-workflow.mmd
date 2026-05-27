@@ -1,0 +1,17 @@
+flowchart TD
+    A([Start]) --> B[Gather ingredients]
+    B --> C{Guanciale\navailable?}
+    C -- Yes --> D[Render guanciale in pan]
+    C -- No --> E[Use pancetta instead]
+    E --> D
+    D --> F[Boil spaghetti al dente]
+    F --> G[Reserve pasta water]
+    G --> H[Whisk yolks, Pecorino\nand black pepper]
+    H --> I[Temper sauce with\npasta water]
+    I --> J[Combine pasta and\nguanciale off heat]
+    J --> K[Add sauce and toss]
+    K --> L{Consistency\nOK?}
+    L -- Too thick --> M[Add pasta water]
+    M --> K
+    L -- Good --> N[Plate and garnish]
+    N --> O([Serve immediately])

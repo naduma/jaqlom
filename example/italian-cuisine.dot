@@ -1,0 +1,29 @@
+digraph ItalianCuisine {
+    rankdir=LR
+    node [shape=box, style=filled, fillcolor="#fffbe6", fontname="Helvetica"]
+    edge [fontname="Helvetica", fontsize=10]
+
+    // Regions
+    Rome    [label="Rome",    fillcolor="#ffd6a5"]
+    Naples  [label="Naples",  fillcolor="#ffd6a5"]
+    Bologna [label="Bologna", fillcolor="#ffd6a5"]
+    Milan   [label="Milan",   fillcolor="#ffd6a5"]
+    Sicily  [label="Sicily",  fillcolor="#ffd6a5"]
+
+    // Dishes
+    Carbonara   [label="Carbonara"]
+    Cacio       [label="Cacio e Pepe"]
+    Pizza       [label="Pizza Napoletana"]
+    Ragù        [label="Ragù alla Bolognese"]
+    Risotto     [label="Risotto alla Milanese"]
+    Arancini    [label="Arancini"]
+
+    Rome    -> Carbonara  [label="origin"]
+    Rome    -> Cacio      [label="origin"]
+    Naples  -> Pizza      [label="origin"]
+    Bologna -> Ragù       [label="origin"]
+    Milan   -> Risotto    [label="origin"]
+    Sicily  -> Arancini   [label="origin"]
+
+    Ragù -> Pizza [label="topping variation", style=dashed]
+}

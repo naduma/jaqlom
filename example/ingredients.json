@@ -1,0 +1,18 @@
+{
+  "recipe": "Pasta Carbonara",
+  "servings": 2,
+  "ingredients": [
+    { "name": "Spaghetti",        "amount": 200, "unit": "g" },
+    { "name": "Guanciale",        "amount": 80,  "unit": "g" },
+    { "name": "Egg yolks",        "amount": 3,   "unit": "pcs" },
+    { "name": "Pecorino Romano",  "amount": 40,  "unit": "g" },
+    { "name": "Black pepper",     "amount": null, "unit": "to taste" },
+    { "name": "Salt",             "amount": null, "unit": "to taste" }
+  ],
+  "nutrition_per_serving": {
+    "calories": 620,
+    "protein_g": 28,
+    "fat_g": 24,
+    "carbohydrates_g": 72
+  }
+}

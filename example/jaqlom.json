@@ -1,0 +1,37 @@
+{
+  "rules": [
+    {
+      "ext": "md",
+      "url": "https://cdn.jsdelivr.net/npm/marked/marked.min.js",
+      "css": [
+        "https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css"
+      ],
+      "style": ".markdown-body { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }",
+      "render": "output.className = 'markdown-body'; return marked.parse(content)"
+    },
+    {
+      "ext": "mmd",
+      "url": "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js",
+      "style": "main { display: flex; justify-content: center; padding: 2rem; }",
+      "render": "mermaid.initialize({ startOnLoad: false }); const { svg } = await mermaid.render('mermaid-' + Date.now(), content.trim()); output.innerHTML = svg;"
+    },
+    {
+      "ext": "dot",
+      "url": "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-graphviz/dist/index.js",
+      "imports": { "Graphviz": "Graphviz" },
+      "style": "main { display: flex; justify-content: center; padding: 2rem; }",
+      "render": "const graphviz = await Graphviz.load(); output.innerHTML = graphviz.dot(content.trim());"
+    },
+    {
+      "ext": "adoc",
+      "url": "https://cdn.jsdelivr.net/npm/@asciidoctor/core/dist/browser/asciidoctor.js",
+      "style": "main { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }",
+      "render": "return Asciidoctor().convert(content)"
+    },
+    {
+      "ext": "json",
+      "style": "main { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; } pre { background: #f6f8fa; padding: 1rem; border-radius: 6px; overflow: auto; font-size: 0.875rem; }",
+      "render": "const obj = JSON.parse(content); const escaped = JSON.stringify(obj, null, 2).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); return '<pre>' + escaped + '</pre>';"
+    }
+  ]
+}

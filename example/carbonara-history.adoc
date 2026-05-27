@@ -1,0 +1,49 @@
+= Carbonara: A Brief History
+:toc:
+:toc-title: Contents
+
+== Origins
+
+Carbonara is a pasta dish from *Rome*, first documented in the early 1950s.
+Its exact origin is debated, but the most widely accepted theory links it to
+the postwar period when American soldiers brought bacon and powdered eggs to
+central Italy.
+
+== Name
+
+The name _carbonara_ derives from _carbone_ (charcoal).
+One popular theory suggests that charcoal workers (_carbonari_) in the
+Apennine Mountains invented it as a hearty on-the-road meal.
+
+== Key Ingredients
+
+[cols="1,2"]
+|===
+| Ingredient | Role
+
+| Guanciale
+| Cured pork cheek; provides fat and a rich, slightly sweet flavour.
+
+| Egg yolks
+| Form the creamy sauce when emulsified with pasta water.
+
+| Pecorino Romano
+| Hard sheep's milk cheese; adds saltiness and depth.
+
+| Black pepper
+| Gives the dish its characteristic bite.
+|===
+
+== Common Mistakes
+
+* Using cream — the authentic recipe contains none.
+* Scrambling the eggs by adding sauce over direct heat.
+* Substituting regular bacon, which lacks the flavour of guanciale.
+
+== Modern Variations
+
+While traditionalists insist on strict adherence to the original four
+ingredients, variations exist worldwide — from adding garlic and onion to
+using heavy cream.
+These are often referred to as _carbonara-style_ dishes rather than
+true carbonara.
