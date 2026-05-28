@@ -42,6 +42,20 @@ func (c Config) ruleForExt(ext string) (Rule, error) {
 	return Rule{}, fmt.Errorf("%w: %s", ErrRuleNotFound, normalized)
 }
 
+func hasLocalAssetPaths(cfg Config) bool {
+	for _, rule := range cfg.Rules {
+		if strings.HasPrefix(rule.URL, "/") {
+			return true
+		}
+		for _, css := range rule.CSS {
+			if strings.HasPrefix(css, "/") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func loadConfig(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -15,6 +15,7 @@ type Options struct {
 	Port       int
 	ConfigPath string
 	RootDir    string
+	AssetsDir  string
 }
 
 func main() {
@@ -43,6 +44,19 @@ func serve(opts Options, cfg Config, stderr io.Writer) error {
 		return err
 	}
 
+	if opts.AssetsDir != "" {
+		if _, err := os.Stat(opts.AssetsDir); err != nil {
+			if stderr != nil {
+				fmt.Fprintf(stderr, "assets directory not found: %s\n", opts.AssetsDir)
+			}
+			return err
+		}
+	} else if hasLocalAssetPaths(cfg) {
+		if stderr != nil {
+			fmt.Fprintf(stderr, "warning: config has local asset paths but -assets is not set\n")
+		}
+	}
+
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.Port))
 	if err != nil {
 		if stderr != nil {
@@ -53,7 +67,7 @@ func serve(opts Options, cfg Config, stderr io.Writer) error {
 	if stderr != nil {
 		fmt.Fprintf(stderr, "listening on http://localhost:%d\n", ln.Addr().(*net.TCPAddr).Port)
 	}
-	return http.Serve(ln, newServer(opts.RootDir, files, cfg))
+	return http.Serve(ln, newServer(opts.RootDir, files, cfg, opts.AssetsDir))
 }
 
 func run(args []string, cwd string, stderr io.Writer) (Options, Config, error) {
@@ -82,6 +96,7 @@ func resolveOptions(args []string, cwd string) (Options, error) {
 
 	port := fs.Int("port", 8080, "port to listen on")
 	configPath := fs.String("config", "", "path to jaqlom.json")
+	assetsDir := fs.String("assets", "", "path to local assets directory")
 
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
@@ -104,9 +119,18 @@ func resolveOptions(args []string, cwd string) (Options, error) {
 	}
 	resolvedConfigPath = filepath.Clean(resolvedConfigPath)
 
+	resolvedAssetsDir := *assetsDir
+	if resolvedAssetsDir != "" {
+		if !filepath.IsAbs(resolvedAssetsDir) {
+			resolvedAssetsDir = filepath.Join(cwd, resolvedAssetsDir)
+		}
+		resolvedAssetsDir = filepath.Clean(resolvedAssetsDir)
+	}
+
 	return Options{
 		Port:       *port,
 		ConfigPath: resolvedConfigPath,
 		RootDir:    rootDir,
+		AssetsDir:  resolvedAssetsDir,
 	}, nil
 }

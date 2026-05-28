@@ -11,11 +11,36 @@ import (
 
 const renderedFileBody = `<p data-role="status"></p><main data-role="output"></main>`
 
-func newServer(rootDir string, files []string, cfg Config) http.Handler {
+func newServer(rootDir string, files []string, cfg Config, assetsDir string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", serveRenderedIndex(files))
 	mux.HandleFunc("/file", serveRenderedFile(rootDir, cfg))
+	if assetsDir != "" {
+		mux.HandleFunc("/assets/", serveLocalAssets(assetsDir))
+	}
 	return mux
+}
+
+func serveLocalAssets(assetsDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		relPath := strings.TrimPrefix(r.URL.Path, "/assets/")
+		if relPath == "" || strings.HasSuffix(relPath, "/") {
+			http.NotFound(w, r)
+			return
+		}
+
+		resolvedPath, err := resolvePath(assetsDir, relPath)
+		if err != nil {
+			if errors.Is(err, ErrForbidden) {
+				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				return
+			}
+			http.NotFound(w, r)
+			return
+		}
+
+		http.ServeFile(w, r, resolvedPath)
+	}
 }
 
 func serveRenderedIndex(files []string) http.HandlerFunc {
