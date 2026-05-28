@@ -8,6 +8,59 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestHasLocalAssetPaths(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		cfg  Config
+		want bool
+	}{
+		{
+			name: "url with local path",
+			cfg:  Config{Rules: []Rule{{Ext: "md", URL: "/assets/marked.min.js", Render: "return content"}}},
+			want: true,
+		},
+		{
+			name: "css with local path",
+			cfg:  Config{Rules: []Rule{{Ext: "md", CSS: []string{"/assets/style.css"}, Render: "return content"}}},
+			want: true,
+		},
+		{
+			name: "url with https",
+			cfg:  Config{Rules: []Rule{{Ext: "md", URL: "https://cdn.example.test/marked.js", Render: "return content"}}},
+			want: false,
+		},
+		{
+			name: "css with https",
+			cfg:  Config{Rules: []Rule{{Ext: "md", CSS: []string{"https://cdn.example.test/style.css"}, Render: "return content"}}},
+			want: false,
+		},
+		{
+			name: "no url or css",
+			cfg:  Config{Rules: []Rule{{Ext: "json", Render: "return content"}}},
+			want: false,
+		},
+		{
+			name: "empty config",
+			cfg:  Config{},
+			want: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasLocalAssetPaths(tc.cfg)
+			if got != tc.want {
+				t.Fatalf("hasLocalAssetPaths(%v) = %v, want %v", tc.cfg, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 
