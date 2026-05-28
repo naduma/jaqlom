@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ var reServerIndexLink = regexp.MustCompile(`<a href="([^"]+)">([^<]+)</a>`)
 func TestNewServerServesIndexHTML(t *testing.T) {
 	t.Parallel()
 
-	server := newServer("", []string{"docs/guide.md"}, Config{})
+	server := newServer("", []string{"docs/guide.md"}, Config{}, "")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
@@ -54,7 +55,7 @@ func TestIndexHTMLContainsServerRenderedLinksOnly(t *testing.T) {
 func TestIndexHTMLRendersAllFilesAndBuildsDetailLinks(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(newServer("", []string{"docs/a.md", "nested/b.md"}, Config{}))
+	server := httptest.NewServer(newServer("", []string{"docs/a.md", "nested/b.md"}, Config{}, ""))
 	defer server.Close()
 
 	got := renderIndexHTML(t, server.URL)
@@ -72,7 +73,7 @@ func TestIndexHTMLRendersAllFilesAndBuildsDetailLinks(t *testing.T) {
 func TestNewServerReturnsNotFoundForUnknownPaths(t *testing.T) {
 	t.Parallel()
 
-	server := newServer("", nil, Config{})
+	server := newServer("", nil, Config{}, "")
 
 	for _, path := range []string{"/favicon.ico", "/robots.txt", "/unknown"} {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -81,6 +82,88 @@ func TestNewServerReturnsNotFoundForUnknownPaths(t *testing.T) {
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("newServer().ServeHTTP(%q) status = %d, want %d", path, rec.Code, http.StatusNotFound)
 		}
+	}
+}
+
+func TestNewServerServesLocalAssets(t *testing.T) {
+	t.Parallel()
+
+	assetsDir := t.TempDir()
+	writeTestFile(t, filepath.Join(assetsDir, "marked.min.js"), "console.log(\"marked\");")
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/marked.min.js", nil)
+	rec := httptest.NewRecorder()
+
+	newServer("", nil, Config{}, assetsDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/assets/marked.min.js", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.Contains(got, "javascript") {
+		t.Fatalf("newServer().ServeHTTP(%q) content type = %q, want javascript", "/assets/marked.min.js", got)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "console.log") {
+		t.Fatalf("newServer().ServeHTTP(%q) body = %q, want file content", "/assets/marked.min.js", body)
+	}
+}
+
+func TestNewServerServesLocalAssetsFromSubdirectories(t *testing.T) {
+	t.Parallel()
+
+	assetsDir := t.TempDir()
+	writeTestFile(t, filepath.Join(assetsDir, "css", "theme.css"), "body { color: black; }")
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/css/theme.css", nil)
+	rec := httptest.NewRecorder()
+
+	newServer("", nil, Config{}, assetsDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/assets/css/theme.css", rec.Code, http.StatusOK)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "color: black") {
+		t.Fatalf("newServer().ServeHTTP(%q) body = %q, want file content", "/assets/css/theme.css", body)
+	}
+}
+
+func TestServeLocalAssetsRejectsPathTraversal(t *testing.T) {
+	t.Parallel()
+
+	assetsDir := t.TempDir()
+	req := httptest.NewRequest(http.MethodGet, "/assets/../../etc/passwd", nil)
+	rec := httptest.NewRecorder()
+
+	serveLocalAssets(assetsDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("serveLocalAssets().ServeHTTP(%q) status = %d, want %d", "/assets/../../etc/passwd", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestNewServerReturnsNotFoundForMissingLocalAsset(t *testing.T) {
+	t.Parallel()
+
+	assetsDir := t.TempDir()
+	req := httptest.NewRequest(http.MethodGet, "/assets/missing.js", nil)
+	rec := httptest.NewRecorder()
+
+	newServer("", nil, Config{}, assetsDir).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/assets/missing.js", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestNewServerReturnsNotFoundForLocalAssetsWhenAssetsDirUnset(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/foo.js", nil)
+	rec := httptest.NewRecorder()
+
+	newServer("", nil, Config{}, "").ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/assets/foo.js", rec.Code, http.StatusNotFound)
 	}
 }
 
@@ -123,7 +206,7 @@ func TestNewServerServesFileHTML(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/file?path=docs/guide.md", nil)
 	rec := httptest.NewRecorder()
 
-	newServer(rootDir, nil, cfg).ServeHTTP(rec, req)
+	newServer(rootDir, nil, cfg, "").ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/file", rec.Code, http.StatusOK)
@@ -179,7 +262,7 @@ func TestFileHTMLLoadsScriptForMatchedRule(t *testing.T) {
 			rootDir := t.TempDir()
 			writeTestFile(t, rootDir+"/"+tc.filePath, tc.fileBody)
 
-			server := httptest.NewServer(newServer(rootDir, nil, cfg))
+			server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 			defer server.Close()
 
 			// Verify the inlined script contains the expected import and no external scripts.
@@ -221,7 +304,7 @@ func TestFileHTMLMakesNoAPIRequests(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(newServer(rootDir, nil, cfg))
+	server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 	defer server.Close()
 
 	got := renderFileHTMLState(t, server.URL, "docs/guide.md", renderFileHTMLOptions{})
@@ -249,7 +332,7 @@ func TestFileHTMLRendersContentUsingRuleSnippet(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(newServer(rootDir, nil, cfg))
+	server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 	defer server.Close()
 
 	got := renderFileHTMLState(t, server.URL, "docs/guide.md", renderFileHTMLOptions{})
@@ -264,7 +347,7 @@ func TestFileHTMLRendersContentUsingRuleSnippet(t *testing.T) {
 func TestFileHTMLShowsMessageWhenPathMissing(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(newServer("", nil, Config{}))
+	server := httptest.NewServer(newServer("", nil, Config{}, ""))
 	defer server.Close()
 
 	got := renderFileHTMLState(t, server.URL, "", renderFileHTMLOptions{OmitPath: true})
@@ -292,7 +375,7 @@ func TestFileHTMLShowsMessageWhenRuleIsMissing(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(newServer(rootDir, nil, cfg))
+	server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 	defer server.Close()
 
 	got := renderFileHTMLState(t, server.URL, "docs/guide.txt", renderFileHTMLOptions{})
@@ -316,7 +399,7 @@ func TestFileHTMLReturnsNotFoundPageWhenFileIsMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/file?path=docs/missing.md", nil)
 	rec := httptest.NewRecorder()
 
-	newServer(rootDir, nil, cfg).ServeHTTP(rec, req)
+	newServer(rootDir, nil, cfg, "").ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/file?path=docs/missing.md", rec.Code, http.StatusNotFound)
@@ -346,7 +429,7 @@ func TestFileHTMLReturnsNotFoundPageWhenRuleIsMissing(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/file?path=docs/guide.txt", nil)
 	rec := httptest.NewRecorder()
 
-	newServer(rootDir, nil, cfg).ServeHTTP(rec, req)
+	newServer(rootDir, nil, cfg, "").ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("newServer().ServeHTTP(%q) status = %d, want %d", "/file?path=docs/guide.txt", rec.Code, http.StatusNotFound)
@@ -375,7 +458,7 @@ func TestFileHTMLShowsMessageWhenScriptLoadFails(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(newServer(rootDir, nil, cfg))
+	server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 	defer server.Close()
 
 	got := renderFileHTMLState(t, server.URL, "docs/guide.md", renderFileHTMLOptions{FailScriptLoad: true})
@@ -402,7 +485,7 @@ func TestFileHTMLShowsMessageWhenRenderFails(t *testing.T) {
 		},
 	}
 
-	server := httptest.NewServer(newServer(rootDir, nil, cfg))
+	server := httptest.NewServer(newServer(rootDir, nil, cfg, ""))
 	defer server.Close()
 
 	got := e2eRenderFileHTMLState(t, server.URL, "docs/guide.md", renderFileHTMLOptions{})

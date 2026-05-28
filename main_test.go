@@ -66,6 +66,140 @@ func TestResolveOptionsRelativeConfigPath(t *testing.T) {
 	}
 }
 
+func TestResolveOptionsAssetsDir(t *testing.T) {
+	t.Parallel()
+
+	cwd := filepath.Join(string(filepath.Separator), "tmp", "work")
+	absPath := filepath.Join(string(filepath.Separator), "abs", "path")
+
+	testCases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "absolute",
+			args: []string{"-assets", absPath},
+			want: absPath,
+		},
+		{
+			name: "relative",
+			args: []string{"-assets", "relative/path"},
+			want: filepath.Join(cwd, "relative", "path"),
+		},
+		{
+			name: "unset",
+			args: nil,
+			want: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := resolveOptions(tc.args, cwd)
+			if err != nil {
+				t.Fatalf("resolveOptions(%v, %q) returned error: %v", tc.args, cwd, err)
+			}
+			if got.AssetsDir != tc.want {
+				t.Fatalf("resolveOptions(%v, %q) AssetsDir = %q, want %q", tc.args, cwd, got.AssetsDir, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveOptionsAssetsDirWithOtherFlags(t *testing.T) {
+	t.Parallel()
+
+	cwd := filepath.Join(string(filepath.Separator), "tmp", "work")
+	configPath := filepath.Join(cwd, "custom.json")
+	assetsDir := filepath.Join(cwd, "assets")
+
+	got, err := resolveOptions([]string{"-port", "9090", "-config", configPath, "-assets", "assets", "docs"}, cwd)
+	if err != nil {
+		t.Fatalf("resolveOptions returned error: %v", err)
+	}
+
+	want := Options{
+		Port:       9090,
+		RootDir:    filepath.Join(cwd, "docs"),
+		ConfigPath: configPath,
+		AssetsDir:  assetsDir,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("resolveOptions(...) mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestServeReturnsErrorForMissingAssetsDir(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	assetsDir := filepath.Join(rootDir, "missing-assets")
+
+	var stderr bytes.Buffer
+	err := serve(Options{Port: -1, RootDir: rootDir, AssetsDir: assetsDir}, Config{}, &stderr)
+	if err == nil {
+		t.Fatalf("serve(...) error = nil, want non-nil")
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("serve(...) error = %v, want not-exist error", err)
+	}
+	wantMessage := []byte("assets directory not found: " + assetsDir)
+	if !bytes.Contains(stderr.Bytes(), wantMessage) {
+		t.Fatalf("serve(...) stderr = %q, want message containing %q", stderr.String(), wantMessage)
+	}
+}
+
+func TestServeWarnsWhenConfigHasLocalPathsWithoutAssetsDir(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	cfg := Config{Rules: []Rule{{Ext: "md", URL: "/assets/marked.min.js", Render: "return content"}}}
+
+	var stderr bytes.Buffer
+	serve(Options{Port: -1, RootDir: rootDir}, cfg, &stderr) //nolint:errcheck
+
+	if !bytes.Contains(stderr.Bytes(), []byte("warning")) {
+		t.Fatalf("serve(...) stderr = %q, want warning about local asset paths", stderr.String())
+	}
+}
+
+func TestServeNoWarnWhenAssetsDirIsSet(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	assetsDir := t.TempDir()
+	cfg := Config{Rules: []Rule{{Ext: "md", URL: "/assets/marked.min.js", Render: "return content"}}}
+
+	var stderr bytes.Buffer
+	serve(Options{Port: -1, RootDir: rootDir, AssetsDir: assetsDir}, cfg, &stderr) //nolint:errcheck
+
+	if bytes.Contains(stderr.Bytes(), []byte("warning")) {
+		t.Fatalf("serve(...) stderr = %q, want no warning when -assets is set", stderr.String())
+	}
+}
+
+func TestServeSkipsAssetsDirValidationWhenUnset(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+
+	var stderr bytes.Buffer
+	err := serve(Options{Port: -1, RootDir: rootDir}, Config{}, &stderr)
+	if err == nil {
+		t.Fatalf("serve(...) error = nil, want non-nil")
+	}
+	if bytes.Contains(stderr.Bytes(), []byte("assets directory not found")) {
+		t.Fatalf("serve(...) stderr = %q, want no assets directory error", stderr.String())
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("failed to listen")) {
+		t.Fatalf("serve(...) stderr = %q, want listen error", stderr.String())
+	}
+}
+
 func TestRunLoadsConfig(t *testing.T) {
 	t.Parallel()
 
