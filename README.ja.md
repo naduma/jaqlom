@@ -148,6 +148,7 @@ jaqlom -assets /path/to/assets /path/to/docs
     {
       "ext": "adoc",
       "url": "https://cdn.jsdelivr.net/npm/@asciidoctor/core/dist/browser/asciidoctor.js",
+      "imports": { "default": "Asciidoctor" },
       "style": "main { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }",
       "render": "return Asciidoctor().convert(content)"
     }
