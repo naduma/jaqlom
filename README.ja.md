@@ -52,6 +52,7 @@ jaqlom [flags] [directory]
 |--------|-----------|------|
 | `-port` | `8080` | 待ち受けポート |
 | `-config` | `<directory>/jaqlom.json` | 設定ファイルのパス |
+| `-assets` | _(なし)_ | `/assets/` として配信する静的ファイルのディレクトリ |
 
 ### Examples
 
@@ -64,6 +65,9 @@ jaqlom /path/to/docs
 
 # ポートと設定ファイルを指定
 jaqlom -port 3000 -config /path/to/jaqlom.json /path/to/docs
+
+# CDN の代わりにローカルのアセットを使用して起動
+jaqlom -assets /path/to/assets /path/to/docs
 ```
 
 起動後、ターミナルに表示された URL（デフォルト: `http://localhost:8080`）をブラウザで開く。
@@ -93,7 +97,7 @@ jaqlom -port 3000 -config /path/to/jaqlom.json /path/to/docs
 | フィールド | 型 | 説明 |
 |------------|-----|------|
 | `ext` | string | 拡張子。`"md"` と `".md"` のどちらでも可 |
-| `url` | string | 読み込むスクリプト URL（省略可） |
+| `url` | string | 読み込むスクリプト URL。`-assets` 起動時はローカルパス（例: `/assets/marked.min.js`）も指定可（省略可） |
 | `imports` | object | ES Modules 用の import 定義。キーが import 名、値がローカル変数名。`default` はデフォルト import（省略可） |
 | `css` | string[] | `@import url(...)` で埋め込む CSS URL 一覧（省略可） |
 | `style` | string | `<style>` として埋め込むインライン CSS（省略可） |
@@ -185,6 +189,49 @@ jaqlom -port 3000 -config /path/to/jaqlom.json /path/to/docs
     }
   ]
 }
+```
+
+</details>
+
+<details>
+<summary>ローカルアセット（オフライン利用）</summary>
+
+スクリプトや CSS をローカルにダウンロードし、`url` と `css` に `/assets/` パスを指定して `-assets` フラグで起動する。
+
+```sh
+# 必要なファイルをダウンロード
+curl -o assets/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
+curl -o assets/github-markdown.min.css https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+
+jaqlom -assets ./assets /path/to/docs
+```
+
+```json
+{
+  "rules": [
+    {
+      "ext": "md",
+      "url": "/assets/marked.min.js",
+      "css": [
+        "/assets/github-markdown.min.css"
+      ],
+      "style": ".markdown-body { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }",
+      "render": "output.className = 'markdown-body'; return marked.parse(content)"
+    }
+  ]
+}
+```
+
+`example/` ディレクトリには対応形式すべてのルールを含む `jaqlom.local.json` がある。使用前に必要なアセットをダウンロードする:
+
+```sh
+mkdir -p example/assets
+curl -o example/assets/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
+curl -o example/assets/github-markdown.min.css https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+curl -o example/assets/mermaid.min.js https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+curl -o example/assets/asciidoctor.js https://cdn.jsdelivr.net/npm/@asciidoctor/core/dist/browser/asciidoctor.js
+
+jaqlom -assets example/assets -config example/jaqlom.local.json example/
 ```
 
 </details>

@@ -52,6 +52,7 @@ If `directory` is omitted, the current working directory is used.
 |------|---------|-------------|
 | `-port` | `8080` | Port to listen on |
 | `-config` | `<directory>/jaqlom.json` | Path to the config file |
+| `-assets` | _(none)_ | Directory to serve as static assets under `/assets/` |
 
 ### Examples
 
@@ -64,6 +65,9 @@ jaqlom /path/to/docs
 
 # Specify port and config file
 jaqlom -port 3000 -config /path/to/jaqlom.json /path/to/docs
+
+# Serve local assets instead of loading from a CDN
+jaqlom -assets /path/to/assets /path/to/docs
 ```
 
 Open the URL shown in the terminal (default: `http://localhost:8080`) in your browser.
@@ -93,7 +97,7 @@ Place `jaqlom.json` in the root of the scanned directory, or use `-config` to po
 | Field | Type | Description |
 |-------|------|-------------|
 | `ext` | string | File extension. Both `"md"` and `".md"` are accepted |
-| `url` | string | Script URL to load (optional) |
+| `url` | string | Script URL to load. Use a local path (e.g. `/assets/marked.min.js`) when running with `-assets` (optional) |
 | `imports` | object | ES Module import map. Keys are import names, values are local variable names. `default` means a default import (optional) |
 | `css` | string[] | CSS URLs to embed via `@import url(...)` (optional) |
 | `style` | string | Inline CSS to embed in a `<style>` tag (optional) |
@@ -185,6 +189,49 @@ Returning a `string` assigns it to `output.innerHTML`. Returning `undefined` or 
     }
   ]
 }
+```
+
+</details>
+
+<details>
+<summary>Local assets (offline use)</summary>
+
+Download scripts and CSS files locally, then point `url` and `css` to `/assets/` paths and start the server with `-assets`.
+
+```sh
+# Download the files you need
+curl -o assets/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
+curl -o assets/github-markdown.min.css https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+
+jaqlom -assets ./assets /path/to/docs
+```
+
+```json
+{
+  "rules": [
+    {
+      "ext": "md",
+      "url": "/assets/marked.min.js",
+      "css": [
+        "/assets/github-markdown.min.css"
+      ],
+      "style": ".markdown-body { max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }",
+      "render": "output.className = 'markdown-body'; return marked.parse(content)"
+    }
+  ]
+}
+```
+
+The `example/` directory includes `jaqlom.local.json` with rules for all supported formats. To use it, download the required assets first:
+
+```sh
+mkdir -p example/assets
+curl -o example/assets/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
+curl -o example/assets/github-markdown.min.css https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css
+curl -o example/assets/mermaid.min.js https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+curl -o example/assets/asciidoctor.js https://cdn.jsdelivr.net/npm/@asciidoctor/core/dist/browser/asciidoctor.js
+
+jaqlom -assets example/assets -config example/jaqlom.local.json example/
 ```
 
 </details>
